@@ -1,3 +1,5 @@
+import curses
+
 def get_if_in_array(x, y, array):
     """
     If (x, y) is a valid coordinate then return array[x][y], else return True.
@@ -49,7 +51,7 @@ class Equation:
         ]
 
 
-def draw(equations: list[Equation], x1: float, y1: float, x2: float, y2: float, width: int, height: int) -> str:
+def draw_equations(equations: list[Equation], x1: float, y1: float, x2: float, y2: float, width: int, height: int) -> str:
     """
     Render multiple equations and convert to a string.
     """
@@ -62,17 +64,52 @@ def draw(equations: list[Equation], x1: float, y1: float, x2: float, y2: float, 
         result += "\n"
     return result
 
+def mainloop(stdscr):
+    k = 0
+
+    center_x = 0
+    center_y = 0
+
+    # Clear and refresh the screen for a blank canvas
+    stdscr.clear()
+    stdscr.refresh()
+
+    # Start colors in curses
+
+
+    # Loop where k is the last character pressed
+    while True:
+
+        # Initialization
+        stdscr.clear()
+        height, width = stdscr.getmaxyx()
+
+        if k == curses.KEY_DOWN:
+            center_y += 1
+        elif k == curses.KEY_UP:
+            center_y -= 1
+        elif k == curses.KEY_RIGHT:
+            center_x -= 1
+        elif k == curses.KEY_LEFT:
+            center_x += 1
+        elif k == ord("q"):
+            break
+
+
+        string = draw_equations([
+            Equation("y**2 + x**2", "1"),
+            Equation("y", "x**3")
+        ], center_x - 2, center_y - 2, center_x + 2, center_y + 2, width - 4, height - 4)
+        for n, line in enumerate(string.split("\n")):
+            stdscr.addstr(2 + n, 2, line)
+
+
+        # Refresh the screen
+        stdscr.refresh()
+        k = stdscr.getch()
+
+
 
 if __name__ == '__main__':
-    import shutil
-    width, height = shutil.get_terminal_size()
-
-    print("\033[H\033[J", end="")
-    print(draw([
-        Equation("y**2 + x**2", "1"),
-        Equation("y", "x**3")
-    ], -2, -2, 2, 2, width, height - 2))
-
-    while True:
-        pass
+    curses.wrapper(mainloop)
 
