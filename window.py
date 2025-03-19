@@ -99,7 +99,6 @@ class Window:
 
         stdscr.clear()
         stdscr.refresh()
-        curses.curs_set(0)  # Disable cursor
 
         self._stdscr = stdscr
 
@@ -212,3 +211,21 @@ class Window:
 
         self._set_color(foreground_color, background_color)
         self._stdscr.addstr(y, x, text)
+
+    def overlay_text(self, x, y, text, foreground_color, background_color):
+        """
+        Overlays the given text ontop of what is already there.
+        This ignores spaces, but will overwrite other characters.
+        """
+        assert 0 <= x, "Area overlaps left border"
+        assert 0 <= y, "Area overlaps top border"
+        assert y + len(text) <= self._size[0], f"Area overlaps bottom border {y, len(text)}"
+
+        self._set_color(foreground_color, background_color)
+        for line in text:
+            assert "\n" not in line#
+            assert x + len(line) <= self._size[1], f"Area overlaps right border {x, len(text)}"
+            for n, char in enumerate(line):
+                if char != " ":
+                    self._stdscr.addch(y, x + n, char)
+            y += 1

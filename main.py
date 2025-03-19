@@ -1,3 +1,6 @@
+import curses
+
+from graph_rendering_utils import render_equations
 from window import Window, Widget, BLACK, WHITE, UP_ARROW, DOWN_ARROW
 
 
@@ -87,14 +90,19 @@ class EquationEditor(Widget):
     """
     A list of all the equations, storing (lhs, rhs).
     """
-    _current_editing: int
+    _current_selected: int
     """ 
-    The index of the item that is currently being edited.
+    The index of the item that is currently being hovered over or being edited.
+    """
+    _currently_editing: int | None
+    """
+    The integer of the index of the cursor. Or None if we are not currently editing.
     """
 
     def __init__(self, equations_list):
         self._equations = equations_list
-        self._current_editing = 0
+        self._current_selected = 0
+        self._currently_editing = None
 
     def draw(self, window: "Window"):
         # Draw the background white to draw the other information on
@@ -106,38 +114,63 @@ class EquationEditor(Widget):
             window.draw_text(0, n + 1, prefix, BLACK, WHITE)
 
             equation = lhs + "=" + rhs
-            fg = WHITE if self._current_editing == n and window.query_focussed(self) else BLACK
-            bg = BLACK if self._current_editing == n and window.query_focussed(self) else WHITE
+            fg = WHITE if self._current_selected == n and window.query_focussed(self) else BLACK
+            bg = BLACK if self._current_selected == n and window.query_focussed(self) else WHITE
             window.draw_centered_text(len(prefix), n + 1, EQUATION_EDITOR_WIDTH - len(prefix), 1, equation, fg, bg)
 
+
     def handle_key(self, key_code: int):
-        if key_code == UP_ARROW:
-            self._current_editing = (self._current_editing - 1) % len(self._equations)
-        elif key_code == DOWN_ARROW:
-            self._current_editing = (self._current_editing + 1) % len(self._equations)
-        elif key_code == ord("+"):
-            self._equations.insert(self._current_editing + 1, ("", ""))
-        elif key_code == ord("-"):
-            self._equations.pop(self._current_editing)
-            self._current_editing = self._current_editing % len(self._equations)
+        if self._currently_editing is None:
+            if key_code == UP_ARROW:
+                self._current_selected = (self._current_selected - 1) % len(self._equations)
+            elif key_code == DOWN_ARROW:
+                self._current_selected = (self._current_selected + 1) % len(self._equations)
+            elif key_code == ord("+"):
+                self._equations.insert(self._current_selected + 1, ("", ""))
+            elif key_code == ord("-"):
+                self._equations.pop(self._current_selected)
+                self._current_selected = self._current_selected % len(self._equations)
+            elif key_code == ord("\n"):
+                self._currently_editing = 0
+        else:
+            if key_code == ord("\n"):
+                self._currently_editing = None  # Finish editing
+            else:
+                self._equations[self._current_selected] = (
+                    self._equations[self._current_selected][0] + chr(key_code),
+                    self._equations[self._current_selected][1]
+                )
 
     def focus_name(self) -> str:
         return "Edit"
 
     def get_current_action_string(self) -> str:
-        return "You are editing the equations"
+        return "You are editing an equation" if self._currently_editing is not None else "You are selecting an equation"
 
     def get_control_descriptions(self) -> dict[str, str]:
-        return {"⌃⌄": "Select Equation", "↵": "Edit Equation", "+/-": "Add/Remove Equation"}
+        if self._currently_editing is not None:
+            return {"↵": "Stop Editing Equation"}
+        else:
+            return {"⌃⌄": "Select Equation", "↵": "Edit Equation", "+/-": "Add/Remove Equation"}
 
 
 class GraphViewer(Widget):
     """
-
+    A widget that draws the equations onto a graph, and allows for panning and zooming.
+    This takes a reference to a list of equations to allow for sharing it between this and the EquationEditor.
+    # TODO: Zooming
     """
 
+    _equations: list[tuple[str, str]]
+    """
+    A list of all the equations, storing (lhs, rhs).
+    """
+
+    def __init__(self, equations_list):
+        self._equations = equations_list
+
     def draw(self, window: "Window"):
-        pass
+        render_equations(self._equations, window, -2, 2, 2, -2, EQUATION_EDITOR_WIDTH, 1, window.get_size()[0] - EQUATION_EDITOR_WIDTH, window.get_size()[1] - 2)
 
     def handle_key(self, key_code: int):
         pass
@@ -152,5 +185,6 @@ class GraphViewer(Widget):
         return {"<⌃⌄>": "Pan the graph"}
 
 if __name__ == "__main__":
-    window = Window([GraphViewer(), EquationEditor([("test", "no"), ("123","xy"), ("x^2+y^2", "1")]), TopBar(), BottomBar()])
+    equations = [("x - y","0")]#, ("x**2+y**2", "1")]
+    window = Window([EquationEditor(equations), TopBar(), BottomBar(), GraphViewer(equations)])
     window.mainloop()
